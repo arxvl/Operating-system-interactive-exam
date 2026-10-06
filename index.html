@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operating Systems Midterm Practice Exam</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="course">UNIX / Linux Operating Systems</p>
+    <h1>Midterm Practice Exam</h1>
+    <p class="blurb">
+      100 multiple-choice questions drawn from Chapters 1 to 4: introduction,
+      operating-system services and structures, processes, and threads and concurrency.
+      Answer what you can, submit, and every question comes back with the correct
+      choice and the reasoning behind it.
+    </p>
+  </div>
+</header>
+
+<div class="bar" id="bar">
+  <div class="wrap bar-inner">
+    <div class="bar-status">
+      <div class="progress" role="progressbar" aria-label="Exam progress">
+        <span id="progressFill"></span>
+      </div>
+      <p id="progressText">Answered 0 of 100</p>
+    </div>
+    <div class="bar-actions">
+      <button type="button" id="jumpBtn" class="btn btn-quiet">Next unanswered</button>
+      <button type="button" id="submitBtn" class="btn btn-primary" disabled>Submit exam</button>
+      <button type="button" id="topRetake" class="btn btn-quiet" hidden>Retake exam</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="results" id="results" hidden aria-live="polite">
+    <h2>Your result</h2>
+    <div class="score-row">
+      <div class="score-main">
+        <p class="score-figure" id="resultScore">0 / 100</p>
+        <p class="score-pct" id="resultPercent">0%</p>
+      </div>
+      <ul class="score-tally">
+        <li><span class="t-num correct" id="resultCorrect">0</span> correct</li>
+        <li><span class="t-num incorrect" id="resultIncorrect">0</span> incorrect</li>
+        <li><span class="t-num blank" id="resultBlank">0</span> left blank</li>
+      </ul>
+    </div>
+    <p class="verdict-line" id="resultVerdict"></p>
+
+    <h3>By section</h3>
+    <ul class="breakdown" id="resultBreakdown"></ul>
+
+    <h3>Review</h3>
+    <div class="filters" id="filters">
+      <button type="button" data-filter="all" class="on" aria-pressed="true">All questions</button>
+      <button type="button" data-filter="wrong" aria-pressed="false">Got wrong</button>
+      <button type="button" data-filter="right" aria-pressed="false">Got right</button>
+      <button type="button" data-filter="blank" aria-pressed="false">Left blank</button>
+    </div>
+    <button type="button" id="retakeBtn" class="btn btn-primary retake">Reset and retake the exam</button>
+  </section>
+
+  <div id="exam"></div>
+
+  <footer class="foot">
+    <p>Practice material for exam preparation, based on the four lecture decks. Nothing here is submitted or stored anywhere.</p>
+  </footer>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
