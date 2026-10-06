@@ -15,8 +15,8 @@
     <p class="blurb">
       100 multiple-choice questions drawn from Chapters 1 to 4: introduction,
       operating-system services and structures, processes, and threads and concurrency.
-      Answer what you can, submit, and every question comes back with the correct
-      choice and the reasoning behind it.
+      Pick an option, submit it, and you find out immediately whether it was right,
+      with the reasoning behind the answer.
     </p>
   </div>
 </header>
@@ -27,11 +27,15 @@
       <div class="progress" role="progressbar" aria-label="Exam progress">
         <span id="progressFill"></span>
       </div>
-      <p id="progressText">Answered 0 of 100</p>
+      <p class="bar-text">
+        <span id="progressText">Answered 0 of 100</span>
+        <span class="dot" aria-hidden="true">&middot;</span>
+        <span id="liveScore">No answers checked yet</span>
+      </p>
     </div>
     <div class="bar-actions">
       <button type="button" id="jumpBtn" class="btn btn-quiet">Next unanswered</button>
-      <button type="button" id="submitBtn" class="btn btn-primary" disabled>Submit exam</button>
+      <button type="button" id="finishBtn" class="btn btn-primary" disabled>See full result</button>
       <button type="button" id="topRetake" class="btn btn-quiet" hidden>Retake exam</button>
     </div>
   </div>
@@ -49,7 +53,7 @@
       <ul class="score-tally">
         <li><span class="t-num correct" id="resultCorrect">0</span> correct</li>
         <li><span class="t-num incorrect" id="resultIncorrect">0</span> incorrect</li>
-        <li><span class="t-num blank" id="resultBlank">0</span> left blank</li>
+        <li><span class="t-num blank" id="resultBlank">0</span> unanswered</li>
       </ul>
     </div>
     <p class="verdict-line" id="resultVerdict"></p>
@@ -62,7 +66,7 @@
       <button type="button" data-filter="all" class="on" aria-pressed="true">All questions</button>
       <button type="button" data-filter="wrong" aria-pressed="false">Got wrong</button>
       <button type="button" data-filter="right" aria-pressed="false">Got right</button>
-      <button type="button" data-filter="blank" aria-pressed="false">Left blank</button>
+      <button type="button" data-filter="blank" aria-pressed="false">Unanswered</button>
     </div>
     <button type="button" id="retakeBtn" class="btn btn-primary retake">Reset and retake the exam</button>
   </section>

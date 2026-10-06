@@ -1219,10 +1219,11 @@ const QUESTIONS = [
 
 /* ============================================================
    Quiz engine
-   Options are stored with the correct choice first for easy
-   authoring, then shuffled deterministically before rendering,
-   so the displayed order is mixed and a fresh order is dealt on
-   every retake.
+   Each question is checked on its own: pick an option, press
+   Submit answer, and the result plus the explanation appear
+   straight away. Options are stored with the correct choice
+   first for easy authoring, then shuffled deterministically
+   before rendering, with a fresh shuffle on every retake.
    ============================================================ */
 
 const LECTURES = [
@@ -1235,18 +1236,21 @@ const LECTURES = [
 const LETTERS = ["A", "B", "C", "D"];
 
 const state = {
-  answers: {},   // question number -> index into the original opts array
+  picked: {},    // question number -> index into the original opts array
+  graded: {},    // question number -> true once checked
+  correct: {},   // question number -> true/false
   order: {},     // question number -> array of original indices, in display order
-  submitted: false,
   attempt: 1,
-  filter: "all"
+  filter: "all",
+  finished: false
 };
 
 const el = {
   exam: document.getElementById("exam"),
   progressFill: document.getElementById("progressFill"),
   progressText: document.getElementById("progressText"),
-  submitBtn: document.getElementById("submitBtn"),
+  liveScore: document.getElementById("liveScore"),
+  finishBtn: document.getElementById("finishBtn"),
   jumpBtn: document.getElementById("jumpBtn"),
   results: document.getElementById("results"),
   resultScore: document.getElementById("resultScore"),
@@ -1299,6 +1303,16 @@ function letterOf(q, originalIndex) {
   return LETTERS[state.order[q.n].indexOf(originalIndex)];
 }
 
+function byNumber(n) {
+  return QUESTIONS[n - 1];
+}
+
+function gradedCount() { return Object.keys(state.graded).length; }
+
+function correctCount() {
+  return Object.keys(state.correct).filter(function (k) { return state.correct[k]; }).length;
+}
+
 /* ---------- build the exam ---------- */
 
 function questionMarkup(q) {
@@ -1325,6 +1339,12 @@ function questionMarkup(q) {
         '</div>' +
         '<p class="qtext">' + escapeHtml(q.q) + '</p>' +
         '<ul class="opts" role="group" aria-label="Question ' + q.n + ' choices">' + opts + '</ul>' +
+        '<div class="qactions">' +
+          '<button type="button" class="btn btn-primary submit-q" data-n="' + q.n + '" disabled>' +
+            'Submit answer' +
+          '</button>' +
+          '<span class="qhint">Choose an option, then submit to check it.</span>' +
+        '</div>' +
         '<div class="feedback" hidden></div>' +
       '</div>' +
     '</article>'
@@ -1348,40 +1368,80 @@ function renderExam() {
   }).join("");
 }
 
-/* ---------- answering ---------- */
+/* ---------- picking an option ---------- */
 
 function onExamChange(e) {
   const input = e.target;
-  if (input.type !== "radio" || state.submitted) return;
+  if (input.type !== "radio") return;
   const n = parseInt(input.name.slice(1), 10);
-  state.answers[n] = parseInt(input.value, 10);
+  if (state.graded[n]) return;
+
+  state.picked[n] = parseInt(input.value, 10);
 
   const card = document.getElementById("q" + n);
   card.classList.add("answered");
   card.querySelectorAll(".opt").forEach(function (li) {
-    li.classList.toggle("chosen", parseInt(li.dataset.index, 10) === state.answers[n]);
+    li.classList.toggle("chosen", parseInt(li.dataset.index, 10) === state.picked[n]);
   });
 
-  updateProgress();
+  const btn = card.querySelector(".submit-q");
+  btn.disabled = false;
+  card.querySelector(".qhint").textContent = "Submit to see whether this is right.";
 }
 
-function answeredCount() {
-  return Object.keys(state.answers).length;
+/* ---------- checking one question ---------- */
+
+function gradeQuestion(n) {
+  if (state.graded[n]) return;
+  const chosen = state.picked[n];
+  if (chosen === undefined) return;
+
+  const q = byNumber(n);
+  const isRight = chosen === q.a;
+  state.graded[n] = true;
+  state.correct[n] = isRight;
+
+  const card = document.getElementById("q" + n);
+  card.classList.add("graded", isRight ? "right" : "wrong");
+  card.querySelectorAll("input[type=radio]").forEach(function (r) { r.disabled = true; });
+  card.querySelectorAll(".opt").forEach(function (li) {
+    const i = parseInt(li.dataset.index, 10);
+    if (i === q.a) li.classList.add("is-correct");
+    if (i === chosen && !isRight) li.classList.add("is-wrong");
+  });
+  card.querySelector(".qactions").hidden = true;
+
+  const verdict = isRight
+    ? '<span class="v v-right">Correct</span> <strong>' + letterOf(q, q.a) + '</strong> is the right choice.'
+    : '<span class="v v-wrong">Incorrect</span> You chose <strong>' + letterOf(q, chosen) +
+      '</strong>. The correct answer is <strong>' + letterOf(q, q.a) + '</strong>.';
+
+  const fb = card.querySelector(".feedback");
+  fb.innerHTML =
+    '<p class="verdict">' + verdict + '</p>' +
+    '<p class="why">' + escapeHtml(q.why) + '</p>';
+  fb.hidden = false;
+
+  updateProgress();
+
+  if (gradedCount() === QUESTIONS.length) finish(true);
 }
+
+/* ---------- progress ---------- */
 
 function updateProgress() {
-  const done = answeredCount();
+  const done = gradedCount();
+  const right = correctCount();
   el.progressFill.style.width = (done / QUESTIONS.length) * 100 + "%";
-  el.progressText.textContent = state.submitted
-    ? "Exam submitted. Scroll down to review every question."
-    : "Answered " + done + " of " + QUESTIONS.length;
-  el.submitBtn.disabled = done === 0;
+  el.progressText.textContent = "Answered " + done + " of " + QUESTIONS.length;
+  el.liveScore.textContent = done ? "Score so far " + right + " / " + done : "No answers checked yet";
+  el.finishBtn.disabled = done === 0;
 }
 
 function jumpToUnanswered() {
-  const next = QUESTIONS.find(function (q) { return state.answers[q.n] === undefined; });
+  const next = QUESTIONS.find(function (q) { return !state.graded[q.n]; });
   if (!next) {
-    el.progressText.textContent = "All " + QUESTIONS.length + " questions answered. Ready to submit.";
+    el.progressText.textContent = "All " + QUESTIONS.length + " questions answered";
     return;
   }
   const card = document.getElementById("q" + next.n);
@@ -1390,85 +1450,50 @@ function jumpToUnanswered() {
   setTimeout(function () { card.classList.remove("flash"); }, 1400);
 }
 
-/* ---------- submitting and grading ---------- */
+/* ---------- final summary ---------- */
 
-function submitExam() {
-  const blank = QUESTIONS.length - answeredCount();
-  if (blank > 0) {
+function finish(auto) {
+  const done = gradedCount();
+  const skipped = QUESTIONS.length - done;
+
+  if (!auto && skipped > 0) {
     const ok = confirm(
-      blank + (blank === 1 ? " question is" : " questions are") +
-      " still unanswered and will be counted as wrong.\n\nSubmit anyway?"
+      skipped + (skipped === 1 ? " question has" : " questions have") +
+      " not been answered yet and will count as wrong in the total.\n\nSee your result anyway?"
     );
     if (!ok) { jumpToUnanswered(); return; }
   }
 
-  state.submitted = true;
-  let correct = 0;
-  const perLecture = {};
+  state.finished = true;
 
-  QUESTIONS.forEach(function (q) {
-    const chosen = state.answers[q.n];
-    const isRight = chosen === q.a;
-    if (isRight) correct++;
-
-    if (!perLecture[q.lec]) perLecture[q.lec] = { right: 0, total: 0 };
-    perLecture[q.lec].total++;
-    if (isRight) perLecture[q.lec].right++;
-
-    const card = document.getElementById("q" + q.n);
-    card.classList.add("graded", isRight ? "right" : "wrong");
-    if (chosen === undefined) card.classList.add("blank");
-
-    card.querySelectorAll("input[type=radio]").forEach(function (r) { r.disabled = true; });
-    card.querySelectorAll(".opt").forEach(function (li) {
-      const i = parseInt(li.dataset.index, 10);
-      if (i === q.a) li.classList.add("is-correct");
-      if (i === chosen && !isRight) li.classList.add("is-wrong");
-    });
-
-    let verdict;
-    if (chosen === undefined) {
-      verdict = '<span class="v v-blank">Left blank</span> The correct answer is <strong>' +
-        letterOf(q, q.a) + '</strong>.';
-    } else if (isRight) {
-      verdict = '<span class="v v-right">Correct</span> <strong>' + letterOf(q, q.a) +
-        '</strong> is the right choice.';
-    } else {
-      verdict = '<span class="v v-wrong">Incorrect</span> You chose <strong>' + letterOf(q, chosen) +
-        '</strong>; the correct answer is <strong>' + letterOf(q, q.a) + '</strong>.';
-    }
-
-    const fb = card.querySelector(".feedback");
-    fb.innerHTML =
-      '<p class="verdict">' + verdict + '</p>' +
-      '<p class="why">' + escapeHtml(q.why) + '</p>';
-    fb.hidden = false;
-  });
-
-  showResults(correct, perLecture);
-  updateProgress();
-}
-
-function showResults(correct, perLecture) {
+  const right = correctCount();
   const total = QUESTIONS.length;
-  const blank = total - answeredCount();
-  const pct = Math.round((correct / total) * 1000) / 10;
+  const pct = Math.round((right / total) * 1000) / 10;
 
-  el.resultScore.textContent = correct + " / " + total;
+  el.resultScore.textContent = right + " / " + total;
   el.resultPercent.textContent = pct + "%";
-  el.resultCorrect.textContent = correct;
-  el.resultIncorrect.textContent = total - correct;
-  el.resultBlank.textContent = blank;
+  el.resultCorrect.textContent = right;
+  el.resultIncorrect.textContent = done - right;
+  el.resultBlank.textContent = skipped;
 
   let verdict;
-  if (pct >= 90) verdict = "Excellent. The whole midterm scope is under control.";
-  else if (pct >= 75) verdict = "Solid. Read the explanations on the ones you missed, then retake.";
+  if (skipped > 0) verdict = "Partial run: " + skipped + " question" + (skipped === 1 ? "" : "s") +
+    " still unanswered. Keep going, or retake from the start.";
+  else if (pct >= 90) verdict = "Excellent. The whole midterm scope is under control.";
+  else if (pct >= 75) verdict = "Solid. Re-read the explanations on the ones you missed, then retake.";
   else if (pct >= 60) verdict = "Passing but shaky. Go back to the chapter behind your weakest section.";
   else verdict = "Re-read the lecture decks, then take this exam again.";
   el.resultVerdict.textContent = verdict;
 
+  const per = {};
+  QUESTIONS.forEach(function (q) {
+    if (!per[q.lec]) per[q.lec] = { right: 0, total: 0 };
+    per[q.lec].total++;
+    if (state.correct[q.n]) per[q.lec].right++;
+  });
+
   el.resultBreakdown.innerHTML = LECTURES.map(function (lec) {
-    const s = perLecture[lec.id];
+    const s = per[lec.id];
     const p = Math.round((s.right / s.total) * 100);
     return (
       '<li>' +
@@ -1481,8 +1506,6 @@ function showResults(correct, perLecture) {
 
   el.results.hidden = false;
   el.topRetake.hidden = false;
-  el.submitBtn.hidden = true;
-  el.jumpBtn.hidden = true;
   el.results.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -1497,10 +1520,11 @@ function applyFilter(name) {
   });
 
   document.querySelectorAll(".qcard").forEach(function (card) {
+    const n = parseInt(card.dataset.n, 10);
     let show = true;
-    if (name === "wrong") show = card.classList.contains("wrong");
-    else if (name === "right") show = card.classList.contains("right");
-    else if (name === "blank") show = card.classList.contains("blank");
+    if (name === "wrong") show = state.graded[n] && !state.correct[n];
+    else if (name === "right") show = !!state.correct[n];
+    else if (name === "blank") show = !state.graded[n];
     card.hidden = !show;
   });
 
@@ -1515,18 +1539,18 @@ function applyFilter(name) {
 /* ---------- retake ---------- */
 
 function retake() {
-  state.answers = {};
-  state.submitted = false;
+  state.picked = {};
+  state.graded = {};
+  state.correct = {};
   state.attempt += 1;
   state.filter = "all";
+  state.finished = false;
 
   dealOrders();
   renderExam();
 
   el.results.hidden = true;
   el.topRetake.hidden = true;
-  el.submitBtn.hidden = false;
-  el.jumpBtn.hidden = false;
   el.filters.querySelectorAll("button").forEach(function (b) {
     const on = b.dataset.filter === "all";
     b.classList.toggle("on", on);
@@ -1544,7 +1568,11 @@ renderExam();
 updateProgress();
 
 el.exam.addEventListener("change", onExamChange);
-el.submitBtn.addEventListener("click", submitExam);
+el.exam.addEventListener("click", function (e) {
+  const btn = e.target.closest(".submit-q");
+  if (btn) gradeQuestion(parseInt(btn.dataset.n, 10));
+});
+el.finishBtn.addEventListener("click", function () { finish(false); });
 el.jumpBtn.addEventListener("click", jumpToUnanswered);
 el.retakeBtn.addEventListener("click", retake);
 el.topRetake.addEventListener("click", retake);

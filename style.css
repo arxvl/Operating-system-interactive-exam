@@ -109,11 +109,15 @@ body {
   transition: width 0.25s ease;
 }
 
-#progressText {
+.bar-text {
   margin: 6px 0 0;
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+
+.bar-text .dot { margin: 0 6px; }
+
+#liveScore { color: var(--accent); font-weight: 600; }
 
 .bar-actions {
   display: flex;
@@ -428,6 +432,23 @@ body {
   color: #fff;
 }
 
+/* per-question submit row */
+
+.qactions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.qactions .btn { font-size: 0.86rem; padding: 8px 18px; min-height: 40px; }
+
+.qhint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
 /* graded states */
 
 .graded .opt-label { cursor: default; }
@@ -538,6 +559,10 @@ body {
   }
 
   .opt-text { font-size: 0.92rem; }
+
+  .qactions { gap: 8px; }
+  .qactions .btn { flex: 1 1 100%; }
+  .qhint { display: none; }
 
   .results { padding: 20px 16px; }
   .score-row { gap: 18px; }
